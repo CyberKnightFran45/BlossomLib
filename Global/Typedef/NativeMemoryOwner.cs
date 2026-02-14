@@ -82,7 +82,7 @@ return index >= 0 ? (ulong)index : 0;
 
 // Checks if this Owner is empty or not
 
-public bool IsEmpty() => _ptr == null || _size == 0;
+public bool IsEmpty() => _ptr is null || _size == 0;
 
 // Get max allocatable size based on platform's arquitecture (32 or 64-bits)
 
@@ -347,7 +347,7 @@ CopyTo(dst, ClampIdx(srcOffset), dstOffset, count);
 public void Move(ulong srcOffset, ulong dstOffset, ulong count)
 {
 bool isEmpty = _size == 0 || count == 0 || srcOffset == dstOffset;
-bool invalidMem = _disposed || _ptr == null;
+bool invalidMem = _disposed || _ptr is null;
 
 bool outsideBounds = srcOffset >= _size || dstOffset >= _size;
 
@@ -412,7 +412,7 @@ Fill(v, start64, count64);
 public void Fill(T v, ulong start = 0, ulong count = 0)
 {
 
-if(_disposed || _ptr == null || _size == 0)
+if(_disposed || _ptr is null || _size == 0)
 return;
 
 ulong max = _size - start;
@@ -428,7 +428,7 @@ _ptr[start + i] = v;
 public void Clear()
 {
 
-if(_disposed || _ptr == null || _size == 0)
+if(_disposed || _ptr is null || _size == 0)
 return;
 
 var bytes = (nuint)(_size * (ulong)sizeof(T) );
@@ -446,7 +446,7 @@ public void Realloc(ulong n)
 var maxAlloc = CapToMaxAllocatable(n);
 var sizeInBytes = (nuint)(maxAlloc * (ulong)sizeof(T) );
 
-if(_ptr == null)
+if(_ptr is null)
 _ptr = (T*)NativeMemory.Alloc(sizeInBytes);
 
 else
@@ -477,7 +477,7 @@ get
 {
 ThrowIfDisposed();
 
-if(_ptr == null || index >= _size)
+if(_ptr is null || index >= _size)
 throw new IndexOutOfRangeException();
 
 return ref _ptr[index];
@@ -500,7 +500,7 @@ public T ElementAt(ulong index)
 {
 ThrowIfDisposed();
 
-if(_ptr == null || index >= _size)
+if(_ptr is null || index >= _size)
 throw new IndexOutOfRangeException();
 
 return _ptr[index];
@@ -608,7 +608,7 @@ public ReadOnlySpan<T> GetView(long offset) => GetView(offset, -1);
 public ReadOnlySpan<T> GetView(ulong offset, int length)
 {
 
-if(_ptr == null || _size == 0 || offset >= _size)
+if(_ptr is null || _size == 0 || offset >= _size)
 return [];
 
 ulong maxLength = _size - offset;
@@ -655,7 +655,7 @@ public Span<T> AsSpan(long offset) => AsSpan(offset, -1);
 public Span<T> AsSpan(ulong offset, int length)
 {
 
-if(_ptr == null || _size == 0 || offset >= _size)
+if(_ptr is null || _size == 0 || offset >= _size)
 return [];
 
 ulong maxLength = _size - offset;

@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 
 /// <summary> Represents a CharPtr that can be casted to a <c>string</c> </summary>
 
@@ -33,7 +32,7 @@ public NativeString(ulong length) : base(length)
 
 // Checks if string is null or Empty
 
-public bool IsNullOrEmpty() => _ptr == null || _size == 0 || _ptr[0] == '\0';
+public bool IsNullOrEmpty() => _ptr is null || _size == 0 || _ptr[0] == '\0';
 
 // Check if char is whitespace
 
@@ -64,7 +63,7 @@ return true;
 public void Trim()
 {
 
-if(_ptr == null || _size == 0)
+if(_ptr is null || _size == 0)
 return;
 
 ulong start = 0;
@@ -83,6 +82,93 @@ Move(start, 0, newLen);
 
 _size = newLen;
 }
+
+/// <summary> Remove leading whitespace (in-place) </summary>
+
+public void TrimStart() => TrimStart(IsWhiteSpace);
+
+/// <summary> Remove leading chars (in-place) </summary>
+
+public void TrimStart(ReadOnlySpan<char> chars)
+{
+
+if(_ptr is null || _size == 0)
+return;
+
+ulong start = 0;
+
+while(start < _size && chars.Contains(_ptr[start] ) )
+start++;
+
+if(start > 0)
+{
+ulong newLen = _size - start;
+Move(start, 0, newLen);
+
+_size = newLen;
+}
+
+}
+
+/// <summary> Remove leading characters matching a predicate (in-place) </summary>
+
+public void TrimStart(Func<char, bool> predicate)
+{
+
+if(_ptr is null || _size == 0)
+return;
+
+ulong start = 0;
+
+while(start < _size && predicate(_ptr[start] ) )
+start++;
+
+if(start > 0)
+{
+ulong newLen = _size - start;
+Move(start, 0, newLen);
+
+_size = newLen;
+}
+
+}
+
+/// <summary> Remove trailing whitespace (in-place) </summary>
+
+public void TrimEnd() => TrimEnd(IsWhiteSpace);
+
+/// <summary> Remove trailing chars (in-place) </summary>
+
+public void TrimEnd(ReadOnlySpan<char> chars)
+{
+
+if(_ptr is null || _size == 0)
+return;
+
+ulong end = _size;
+
+while(end > 0 && chars.Contains(_ptr[end - 1] ) )
+end--;
+
+_size = end;
+}
+
+/// <summary> Remove trailing characters matching a predicate (in-place) </summary>
+
+public void TrimEnd(Func<char, bool> predicate)
+{
+
+if(_ptr is null || _size == 0)
+return;
+
+ulong end = _size;
+
+while(end > 0 && predicate(_ptr[end - 1] ) )
+end--;
+
+_size = end;
+}
+
 
 /** <summary> Gets a managed String from the specified offset </summary>
 
@@ -146,10 +232,10 @@ _ptr[i] = char.ToLowerInvariant(_ptr[i] );
 public static int Compare(NativeString a, ReadOnlySpan<char> b, StringComparison cmp)
 {
 
-if(a == null && b.IsEmpty)
+if(a is null && b.IsEmpty)
 return 0;
 
-if(a == null)
+if(a is null)
 return -1;
 
 if(b.IsEmpty)
@@ -165,13 +251,13 @@ return viewA.CompareTo(b, cmp);
 public static int Compare(NativeString a, NativeString b, StringComparison cmp)
 {
 
-if(a == null && b == null)
+if(a is null && b is null)
 return 0;
 
-if(a == null)
+if(a is null)
 return -1;
 
-if(b == null)
+if(b is null)
 return 1;
 
 var viewA = a.GetView();

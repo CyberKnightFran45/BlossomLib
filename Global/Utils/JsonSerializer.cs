@@ -180,12 +180,12 @@ return false;
 public static string SerializeObject<T>(T obj, JsonSerializerContext context = null)
 {
 
-if(obj == null)
+if(obj is null)
 return "";
 
 var typeInfo = context?.GetTypeInfo(typeof(T) );
 
-if(typeInfo == null)
+if(typeInfo is null)
 return NetSerializer.Serialize(obj, _options);
 
 return NetSerializer.Serialize(obj, typeInfo);
@@ -196,12 +196,12 @@ return NetSerializer.Serialize(obj, typeInfo);
 public static void SerializeObject<T>(T obj, Stream writer, JsonSerializerContext context = null)
 {
 
-if(obj == null)
+if(obj is null)
 return;
 
 var typeInfo = context?.GetTypeInfo(typeof(T) );
 
-if(typeInfo == null)
+if(typeInfo is null)
 NetSerializer.Serialize(writer, obj, _options);
 
 else
@@ -223,7 +223,7 @@ return default;
 
 var typeInfo = context?.GetTypeInfo(typeof(T) );
 
-if(typeInfo == null)
+if(typeInfo is null)
 return NetSerializer.Deserialize<T>(json, _options);
 
 return (T)NetSerializer.Deserialize(json, typeInfo);
@@ -239,7 +239,7 @@ public static T DeserializeObject<T>(Stream reader, JsonSerializerContext contex
 {
 var typeInfo = context?.GetTypeInfo(typeof(T) );
 
-if(typeInfo == null)
+if(typeInfo is null)
 return NetSerializer.Deserialize<T>(reader, _options);
 
 return (T)NetSerializer.Deserialize(reader, typeInfo);

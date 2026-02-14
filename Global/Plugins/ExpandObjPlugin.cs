@@ -24,7 +24,7 @@ return result;
 private static object ConvertValue(object value)
 {
 
-if(value == null)
+if(value is null)
 return null;
 
 else if(value.Equals("") )
@@ -81,7 +81,7 @@ return value;
 public static ExpandoObject ToExpandoObject(IDictionary<string, object> dictionary)
 {
 
-if(dictionary == null)
+if(dictionary is null)
 return null;
 
 ExpandoObject expando = new();
@@ -121,7 +121,7 @@ return list;
 public static ExpandoObject ToExpandoObject(JObject jObject)
 {
 
-if(jObject == null)
+if(jObject is null)
 return null;
 
 var expandoObject = new ExpandoObject() as IDictionary<string, object>;
@@ -311,7 +311,7 @@ return hasDiff;
 private static bool IsNullOrEmptyCollection(object value)
 {
 
-if(value == null)
+if(value is null)
 return true;
 
 else if(value is IEnumerable<object> list)

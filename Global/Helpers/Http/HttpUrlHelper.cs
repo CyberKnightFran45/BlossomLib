@@ -24,7 +24,7 @@ public static void WriteContent(Stream writer, string name, object val, bool isF
 if(!isFirst)
 writer.WriteChar16('&');
 
-string encodedVal = val == null ? string.Empty : Uri.EscapeDataString(val.ToString() );
+string encodedVal = val is null ? string.Empty : Uri.EscapeDataString(val.ToString() );
 
 writer.WriteString($"{name}={encodedVal}");
 }

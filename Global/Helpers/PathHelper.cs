@@ -239,7 +239,7 @@ public static void FilterFiles(ref IEnumerable<string> sourceFiles, HashSet<stri
 HashSet<string> extensions, HashSet<string> namesToExclude = null, HashSet<string> extToExclude = null)
 {
 
-if(sourceFiles == null || (names.Count > 0 && extensions.Count > 0) )
+if(sourceFiles is null || (names.Count > 0 && extensions.Count > 0) )
 return;
 
 namesToExclude ??= new();
@@ -278,7 +278,7 @@ public static void FilterDirs(ref IEnumerable<string> sourceDirs, HashSet<string
 HashSet<string> namesToExclude = null)
 {
 
-if(sourceDirs == null || (names.Count > 0 && maxLength < 0) )
+if(sourceDirs is null || (names.Count > 0 && maxLength < 0) )
 return;
 
 namesToExclude ??= new();
@@ -355,7 +355,7 @@ targetPath = targetPath.Replace('\\', '/');
 public static string SafeCombine(params string[] paths)
 {
 
-if(paths == null || paths.Length == 0)
+if(paths is null || paths.Length == 0)
 return string.Empty;
 
 for(int i = 0; i < paths.Length; i++)

@@ -148,7 +148,7 @@ return Uri.EscapeDataString(src);
 public static string BuildQuery(string baseUrl, Dictionary<string, string> parameters)
 {
 
-if(parameters == null || parameters.Count == 0)
+if(parameters is null || parameters.Count == 0)
 return baseUrl;
 
 List<string> queryParts = new();

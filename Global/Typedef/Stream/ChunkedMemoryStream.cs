@@ -65,7 +65,7 @@ public class ChunkedMemoryStream : Stream
     public override int Read(byte[] buffer, int offset, int count)
     {
         ThrowIfDisposed();
-        if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+        if (buffer is null) throw new ArgumentNullException(nameof(buffer));
         if (offset < 0 || count < 0) throw new ArgumentOutOfRangeException();
         if (buffer.Length - offset < count) throw new ArgumentException();
 
@@ -102,7 +102,7 @@ public class ChunkedMemoryStream : Stream
     public override void Write(byte[] buffer, int offset, int count)
     {
         ThrowIfDisposed();
-        if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+        if (buffer is null) throw new ArgumentNullException(nameof(buffer));
         if (offset < 0 || count < 0) throw new ArgumentOutOfRangeException();
         if (buffer.Length - offset < count) throw new ArgumentException();
 

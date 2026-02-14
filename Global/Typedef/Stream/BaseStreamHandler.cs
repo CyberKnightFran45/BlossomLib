@@ -13,7 +13,7 @@ public long Length => BaseStream.Length;
 
 public long Position => BaseStream.Position;
 
-public bool IsClosed => BaseStream == null || !BaseStream.CanRead && !BaseStream.CanWrite;
+public bool IsClosed => BaseStream is null || !BaseStream.CanRead && !BaseStream.CanWrite;
 
 public bool IsMemoryStream => BaseStream is MemoryStream;
 

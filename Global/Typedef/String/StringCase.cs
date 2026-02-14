@@ -2,9 +2,9 @@
 
 public enum StringCase
 {
-/// <summary> The Strings will be in <b>lowercase</b>. </summary>
+/// <summary> Strings will be in <b>lowercase</b>. </summary>
 Lower,
 
-/// <summary> The Strings will be in <b>UPPERCASE</b>. </summary>
+/// <summary> Strings will be in <b>UPPERCASE</b>. </summary>
 Upper
 }

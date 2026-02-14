@@ -194,7 +194,7 @@ public static NativeMemoryOwner<byte> ComputeBytes(ReadOnlySpan<byte> input, Rea
 byte[] authCode)
 {
 
-if(authCode == null || authCode.Length == 0)
+if(authCode is null || authCode.Length == 0)
 return ComputeBytes(input, providerName);
 
 using HMAC hmacAlg = CreateHmac(providerName);

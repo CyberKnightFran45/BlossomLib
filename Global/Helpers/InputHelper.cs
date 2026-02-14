@@ -108,7 +108,7 @@ private static T ParseNumber<T>(string number) where T : struct
 {
 object parsed = Convert.ChangeType(number, typeof(T) );
 
-return parsed == null ? default : (T)parsed;
+return parsed is null ? default : (T)parsed;
 }
 
 /** <summary> Filters a numeric Value from user's Input. </summary>

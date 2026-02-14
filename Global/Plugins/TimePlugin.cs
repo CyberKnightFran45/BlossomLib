@@ -8,7 +8,7 @@ public static class TimePlugin
 public static string GetExactTime(this Stopwatch timer)
 {
 
-if(timer == null)
+if(timer is null)
 return "00:00:00.000";
 
 var elapsed = timer.Elapsed;

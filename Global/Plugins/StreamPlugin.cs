@@ -42,7 +42,15 @@ return memOwner;
 
 public static bool ReadBool(this Stream reader) => reader.ReadByte() != 0;
 
-// Read char (8-bits)
+// Read bool (16-bits)
+
+public static bool ReadBool16(this Stream reader) => reader.ReadInt16() != 0;
+
+// Read bool (32-bits)
+
+public static bool ReadBool32(this Stream reader) => reader.ReadInt32() != 0;
+
+// Read ASCII char (8-bits)
 
 public static char ReadChar8(this Stream reader) => (char)reader.ReadUInt8();
 
@@ -55,6 +63,39 @@ reader.ReadExactly(buffer);
 
 return BinaryHelper.ReadChar16(buffer, endian);
 }
+
+// Read char (by using Encoding)
+
+public static char ReadChar(this Stream reader, EncodingType encodeFlags)
+{
+Span<byte> buffer = stackalloc byte[4]; // UTF-8 worst case
+Span<char> charSpan = stackalloc char[1];
+
+int bytesRead = 0;
+
+while(true)
+{
+int b = reader.ReadByte();
+
+if(b == -1)
+throw new EndOfStreamException();
+
+buffer[bytesRead++] = (byte)b;
+
+var encoding = encodeFlags.GetEncoding();
+int charsDecoded = encoding.GetChars(buffer[.. bytesRead], charSpan);
+
+if(charsDecoded > 0)
+return charSpan[0];
+
+if(bytesRead >= buffer.Length)
+throw new InvalidDataException("Unable to decode Char");
+
+}
+
+}
+
+
 
 // Read int8
 
@@ -242,6 +283,16 @@ reader.ReadExactly(buffer);
 return BinaryHelper.ReadDouble(buffer, endian);
 }
 
+// Read Unix Timestamp as Windows DateTime
+
+public static DateTime ReadUnixTime(this Stream reader)
+{
+uint timeStamp = reader.ReadUInt32();
+
+return UnixTimestamp.ConvertFrom(timeStamp);
+}
+
+
 // Read whole file as string
 
 public static NativeString ReadString(this Stream reader, EncodingType encoding = EncodingType.UTF8)
@@ -407,7 +458,20 @@ var b = (byte)(v ? 1u : 0u);
 writer.WriteByte(b);
 }
 
-// Write char (8-bits)
+// Write bool (16-bits)
+
+public static void WriteBool16(this Stream writer, bool v)
+{
+var u = (ushort)(v ? 1u : 0u);
+
+writer.WriteUInt16(u);
+}
+
+// Write bool (32-bits)
+
+public static void WriteBool32(this Stream writer, bool v) => writer.WriteUInt32(v ? 1u : 0u);
+
+// Write char (8-bits, ASCII only)
 
 public static void WriteChar8(this Stream writer, char c) => writer.WriteByte( (byte)c);
 
@@ -416,6 +480,19 @@ public static void WriteChar8(this Stream writer, char c) => writer.WriteByte( (
 public static void WriteChar16(this Stream writer, char c, Endianness endian = default)
 {
 writer.WriteUInt16(c, endian);
+}
+
+// Encode char (by using Encoding)
+
+public static void WriteChar(this Stream writer, char c, EncodingType encodeFlags)
+{
+Span<char> charSpan = [ c ];
+Span<byte> buffer = stackalloc byte[4]; // UTF-8 worst case
+
+var encoding = encodeFlags.GetEncoding();
+int written = encoding.GetBytes(charSpan, buffer);
+
+writer.Write(buffer[.. written] );
 }
 
 // Write sbyte
@@ -590,6 +667,15 @@ Span<byte> buffer = stackalloc byte[8];
 BinaryHelper.WriteDouble(v, buffer, endian);
 
 writer.Write(buffer);
+}
+
+// Write Windows Time as Unix Time
+
+public static void WriteUnixTime(this Stream writer, DateTime dateTime)
+{
+var timeStamp = (uint)UnixTimestamp.ConvertTo(dateTime);
+
+writer.WriteUInt32(timeStamp);
 }
 
 // Write string
