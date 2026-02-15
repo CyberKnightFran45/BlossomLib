@@ -418,7 +418,13 @@ while(true)
 int raw = reader.ReadByte();
 
 if(raw == -1)
+{
+
+if(length > 0)
+return BinaryHelper.GetNativeString(buffer.AsSpan(0, length), encoding);
+	
 return null;
+}
 
 var b = (byte)raw;
 
@@ -890,4 +896,5 @@ return b;
 }
 
 #endregion
+
 }
