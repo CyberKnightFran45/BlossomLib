@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.CompilerServices;
 
 /// <summary> Represents a buffer that supports Binary operations </summary>
 
@@ -36,6 +35,29 @@ this[index] = (byte)(v ? 1u : 0u);
 
 public void SetBool(long index, bool v) => SetBool(ClampIdx(index), v);
 
+// Set bool (16-bits)
+
+public void SetBool16(ulong index, bool v)
+{
+var u = (ushort)(v ? 1u : 0u);
+
+SetUInt16(index, u);
+}
+
+public void SetBool16(long index, bool v) => SetBool16(ClampIdx(index), v);
+
+// Set bool (32-bits)
+
+public void SetBool32(ulong index, bool v) => SetUInt32(index, v ? 1u : 0u);
+
+public void SetBool32(long index, bool v) => SetBool32(ClampIdx(index), v);
+
+// Set bool (64-bits)
+
+public void SetBool64(ulong index, bool v) => SetUInt64(index, v ? 1u : 0u);
+
+public void SetBool64(long index, bool v) => SetBool64(ClampIdx(index), v);
+
 // Set char (8-bits)
 
 public void SetChar8(ulong index, char c) => this[index] = (byte)c;
@@ -54,6 +76,20 @@ BinaryHelper.WriteChar16(c, view, endian);
 public void SetChar16(long index, char c, Endianness endian = default)
 {
 SetChar16(ClampIdx(index), c, endian);
+}
+
+// Set char (by Encoding)
+
+public int SetChar(ulong index, char c, EncodingType encodeFlags)
+{
+var buffer = AsSpan(index, 4); // UTF-8 worst case
+
+return BinaryHelper.WriteChar(c, buffer, encodeFlags);
+}
+
+public int SetChar(long index, char c, EncodingType encodeFlags)
+{
+return SetChar(ClampIdx(index), c, encodeFlags);
 }
 
 // Set int8
@@ -219,59 +255,47 @@ pos++;
 
 // Set VarInt
 
-public void SetVarInt(ulong index, int v, out int bytesWritten)
+public int SetVarInt(ulong index, int v)
 {
 ulong pos = index;
 
-BinaryHelper.EncodeVarInt(b => SetNextByte(b, ref pos), v, out bytesWritten);
+return BinaryHelper.EncodeVarInt(b => SetNextByte(b, ref pos), v);
 }
 
-public void SetVarInt(long index, int v, out int bytesWritten)
-{
-SetVarInt(ClampIdx(index), v, out bytesWritten);
-}
+public int SetVarInt(long index, int v) => SetVarInt(ClampIdx(index), v);
 
 // Set VarInt64
 
-public void SetVarInt64(ulong index, long v, out int bytesWritten)
+public int SetVarInt64(ulong index, long v)
 {
 ulong pos = index;
 
-BinaryHelper.EncodeVarInt64(b => SetNextByte(b, ref pos), v, out bytesWritten);
+return BinaryHelper.EncodeVarInt64(b => SetNextByte(b, ref pos), v);
 }
 
-public void SetVarInt64(long index, long v, out int bytesWritten)
-{
-SetVarInt64(ClampIdx(index), v, out bytesWritten);
-}
+public int SetVarInt64(long index, long v) => SetVarInt64(ClampIdx(index), v);
 
 // Set ZigZag int
 
-public void SetZigZag(ulong index, int v)
+public int SetZigZag(ulong index, int v)
 {
 int zigZag = BinaryHelper.EncodeZigZag(v);
 
-SetVarInt(index, zigZag, out _);
+return SetVarInt(index, zigZag);
 }
 
-public void SetZigZag(long index, int v)
-{
-SetZigZag(ClampIdx(index), v);
-}
+public int SetZigZag(long index, int v) => SetZigZag(ClampIdx(index), v);
 
 // Set ZigZag long
 
-public void SetZigZag64(ulong index, long v)
+public int SetZigZag64(ulong index, long v)
 {
 long zigZag = BinaryHelper.EncodeZigZag64(v);
 
-SetVarInt64(index, zigZag, out _);
+return SetVarInt64(index, zigZag);
 }
 
-public void SetZigZag64(long index, long v)
-{
-SetZigZag64(ClampIdx(index), v);
-}
+public int SetZigZag64(long index, long v) => SetZigZag64(ClampIdx(index), v);
 
 // Set half
 
@@ -315,199 +339,217 @@ public void SetDouble(long index, double v, Endianness endian = default)
 SetDouble(ClampIdx(index), v, endian);
 }
 
-// Set string
+// Set UNIX Time (32-bits)
 
-public void SetString(ulong index, ReadOnlySpan<char> str, out ulong bytesWritten,
-                      EncodingType encoding = EncodingType.UTF8)
+public void SetUnixTime32(ulong index, DateTime dateTime)
 {
-bytesWritten = 0;
+var view = AsSpan(index, 4);
 
-if(str.IsEmpty)
-return;
-
-using var rawBytes = BinaryHelper.GetNativeBytes(str, encoding);
-bytesWritten = rawBytes.Size;
-
-CopyFrom(rawBytes, index);
+BinaryHelper.WriteUnixTime(dateTime, view);
 }
 
-public void SetString(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public void SetUnixTime32(long index, DateTime dateTime)
 {
-SetString(ClampIdx(index), str, out _, encoding);
+SetUnixTime32(ClampIdx(index), dateTime);
+}
+
+// Set UNIX Time (64-bits)
+
+public void SetUnixTime64(ulong index, DateTime dateTime)
+{
+var view = AsSpan(index, 8);
+
+BinaryHelper.WriteUnixTime(dateTime, view);
+}
+
+public void SetUnixTime64(long index, DateTime dateTime)
+{
+SetUnixTime64(ClampIdx(index), dateTime);
+}
+
+// Set string
+
+public ulong SetString(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+{
+
+if(str.IsEmpty)
+return 0;
+
+using var rawBytes = BinaryHelper.GetNativeBytes(str, encoding);
+ulong bytesWritten = rawBytes.Size;
+
+CopyFrom(rawBytes, index);
+
+return bytesWritten;
+}
+
+public ulong SetString(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+{
+return SetString(ClampIdx(index), str, encoding);
 }
 
 // Set string prefixed by int8 length
 
-public void SetStringByLen8(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetStringByLen8(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
 {
+ulong rawLen = 0;
 
-if(str.IsEmpty)
-{
-SetUInt8(index, 0x00);
-return;
+if(!str.IsEmpty)
+rawLen = SetString(index + 1, str, encoding);
+
+SetUInt8(index, (byte)rawLen);
+
+return rawLen + 1;
 }
 
-var rawLen = (byte)BinaryHelper.GetEncodedLength(str, encoding);
-SetUInt8(index, rawLen);
-
-SetString(index + 1, str, out _, encoding);
-}
-
-public void SetStringByLen8(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetStringByLen8(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
 {
-SetStringByLen8(ClampIdx(index), str, encoding);
+return SetStringByLen8(ClampIdx(index), str, encoding);
 }
 
 // Set string prefixed by int16 length
 
-public void SetStringByLen16(ulong index, ReadOnlySpan<char> str,
-                             EncodingType encoding = EncodingType.UTF8,
-                             Endianness endian = default)
+public ulong SetStringByLen16(ulong index, ReadOnlySpan<char> str,
+                              EncodingType encoding = EncodingType.UTF8,
+                              Endianness endian = default)
 {
+ulong rawLen = 0;
 
-if(str.IsEmpty)
-{
-SetUInt16(index, 0);
-return;
+if(!str.IsEmpty)
+rawLen = SetString(index + 2, str, encoding);
+
+SetUInt16(index, (ushort)rawLen, endian);
+
+return rawLen + 2;
 }
 
-var rawLen = (ushort)BinaryHelper.GetEncodedLength(str, encoding);
-SetUInt16(index, rawLen, endian);
-
-SetString(index + 2, str, out _, encoding);
-}
-
-public void SetStringByLen16(long index, ReadOnlySpan<char> str,
-                             EncodingType encoding = EncodingType.UTF8,
-                             Endianness endian = default)
+public ulong SetStringByLen16(long index, ReadOnlySpan<char> str,
+                              EncodingType encoding = EncodingType.UTF8,
+                              Endianness endian = default)
 {
-SetStringByLen16(ClampIdx(index), str, encoding, endian);
+return SetStringByLen16(ClampIdx(index), str, encoding, endian);
 }
 
 // Set string prefixed by int32 length
 
-public void SetStringByLen32(ulong index, ReadOnlySpan<char> str,
-                             EncodingType encoding = EncodingType.UTF8,
-                             Endianness endian = default)
+public ulong SetStringByLen32(ulong index, ReadOnlySpan<char> str,
+                              EncodingType encoding = EncodingType.UTF8,
+                              Endianness endian = default)
 {
+ulong rawLen = 0;
 
-if(str.IsEmpty)
-{
-SetUInt32(index, 0);
-return;
+if(!str.IsEmpty)
+rawLen = SetString(index + 4, str, encoding);
+
+SetUInt32(index, (uint)rawLen, endian);
+
+return rawLen + 4;
 }
 
-int rawLen = BinaryHelper.GetEncodedLength(str, encoding);
-SetInt32(index, rawLen, endian);
-
-SetString(index + 4, str, out _, encoding);
-}
-
-public void SetStringByLen32(long index, ReadOnlySpan<char> str,
-                             EncodingType encoding = EncodingType.UTF8,
-                             Endianness endian = default)
+public ulong SetStringByLen32(long index, ReadOnlySpan<char> str,
+                              EncodingType encoding = EncodingType.UTF8,
+                              Endianness endian = default)
 {
-SetStringByLen32(ClampIdx(index), str, encoding, endian);
+return SetStringByLen32(ClampIdx(index), str, encoding, endian);
 }
 
 // Set string prefixed by int64 length
 
-public void SetStringByLen64(ulong index, ReadOnlySpan<char> str,
-                             EncodingType encoding = EncodingType.UTF8,
-                             Endianness endian = default)
+public ulong SetStringByLen64(ulong index, ReadOnlySpan<char> str,
+                              EncodingType encoding = EncodingType.UTF8,
+                              Endianness endian = default)
 {
+ulong rawLen = 0;
 
-if(str.IsEmpty)
-{
-SetUInt64(index, 0);
-return;
+if(!str.IsEmpty)
+rawLen = SetString(index + 8, str, encoding);
+
+SetUInt64(index, rawLen, endian);
+
+return rawLen + 8;
 }
 
-long rawLen = BinaryHelper.GetEncodedLength(str, encoding);
-SetInt64(index, rawLen, endian);
-
-SetString(index + 8, str, out _, encoding);
-}
-
-public void SetStringByLen64(long index, ReadOnlySpan<char> str,
-                             EncodingType encoding = EncodingType.UTF8,
-                             Endianness endian = default)
+public ulong SetStringByLen64(long index, ReadOnlySpan<char> str,
+                              EncodingType encoding = EncodingType.UTF8,
+                              Endianness endian = default)
 {
-SetStringByLen64(ClampIdx(index), str, encoding, endian);
+return SetStringByLen64(ClampIdx(index), str, encoding, endian);
 }
 
 // Set string prefixed by varint length
 
-public void SetStringByVarLen(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetStringByVarLen(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
 {
 
 if(str.IsEmpty)
-{
-SetVarInt(index, 0, out _);
-return;
-}
+return (ulong)SetVarInt(index, 0);
 
 int rawLen = BinaryHelper.GetEncodedLength(str, encoding);
-SetVarInt(index, rawLen, out int bytesWritten);
+var varLen = (ulong)SetVarInt(index, rawLen);
 
-ulong strIndex = index + (ulong)bytesWritten;
-SetString(strIndex, str, out _, encoding);
+ulong strIndex = index + varLen;
+SetString(strIndex, str, encoding);
+
+return (ulong)rawLen + varLen;
 }
 
-public void SetStringByVarLen(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetStringByVarLen(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
 {
-SetStringByVarLen(ClampIdx(index), str, encoding);
+return SetStringByVarLen(ClampIdx(index), str, encoding);
 }
 
 // Set string prefixed by varint64 length
 
-public void SetStringByVarLen64(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetStringByVarLen64(ulong index, ReadOnlySpan<char> str,
+                                 EncodingType encoding = EncodingType.UTF8)
 {
 
 if(str.IsEmpty)
-{
-SetVarInt64(index, 0, out _);
-return;
-}
+return (ulong)SetVarInt64(index, 0);
 
 long rawLen = BinaryHelper.GetEncodedLength(str, encoding);
-SetVarInt64(index, rawLen, out int bytesWritten);
+var varLen = (ulong)SetVarInt64(index, rawLen);
 
-ulong strIndex = index + (ulong)bytesWritten;
-SetString(strIndex, str, out _, encoding);
+ulong strIndex = index + varLen;
+SetString(strIndex, str, encoding);
+
+return (ulong)rawLen + varLen;
 }
 
-public void SetStringByVarLen64(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetStringByVarLen64(long index, ReadOnlySpan<char> str,
+                                 EncodingType encoding = EncodingType.UTF8)
 {
-SetStringByVarLen64(ClampIdx(index), str, encoding);
+return SetStringByVarLen64(ClampIdx(index), str, encoding);
 }
 
 // Set C-string
 
-public void SetCString(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetCString(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
 {
-SetString(index, str, out var bytesWritten, encoding);
+ulong rawBytes = SetString(index, str, encoding);
+SetUInt8(index + rawBytes, 0x00);
 
-SetChar8(index + bytesWritten, '\0');
+return rawBytes + 1;
 }
 
-public void SetCString(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetCString(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
 {
-SetCString(ClampIdx(index), str, encoding);
+return SetCString(ClampIdx(index), str, encoding);
 }
 
 // Get line
 
-public void SetLine(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetLine(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
 {
-SetString(index, str, out var bytesWritten, encoding);
+ulong rawBytes = SetString(index, str, encoding);
+ulong separatorLen = SetString(index + rawBytes, Environment.NewLine, encoding);
 
-SetString(index + bytesWritten, Environment.NewLine, out _, encoding);
+return rawBytes + separatorLen;
 }
 
-public void SetLine(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetLine(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
 {
-SetLine(ClampIdx(index), str, encoding);
+return SetLine(ClampIdx(index), str, encoding);
 }
 
 }

@@ -4,11 +4,39 @@ using System;
 
 public sealed partial class NativeBuffer : NativeMemoryOwner<byte>
 {
+// Advance one byte
+
+private byte GetNextByte(ref ulong pos)
+{
+var b = GetUInt8(pos);
+pos++;
+
+return b;
+}
+
 // Get boolean
 
 public bool GetBool(ulong index) => GetUInt8(index) != 0;
 
 public bool GetBool(long index) => GetBool(ClampIdx(index) );
+
+// Get boolean (16-bits)
+
+public bool GetBool16(ulong index) => GetInt16(index) != 0;
+
+public bool GetBool16(long index) => GetBool16(ClampIdx(index) );
+
+// Get boolean (32-bits)
+
+public bool GetBool32(ulong index) => GetInt32(index) != 0;
+
+public bool GetBool32(long index) => GetBool32(ClampIdx(index) );
+
+// Get boolean (64-bits)
+
+public bool GetBool64(ulong index) => GetInt64(index) != 0;
+
+public bool GetBool64(long index) => GetBool64(ClampIdx(index) );
 
 // Get char (8-bits)
 
@@ -26,6 +54,20 @@ return BinaryHelper.ReadChar16(view, endian);
 }
 
 public char GetChar16(long index, Endianness endian = default) => GetChar16(ClampIdx(index), endian);
+
+// Get char (by Encoding)
+
+public char GetChar(ulong index, EncodingType encodeFlags, out int bytesRead)
+{
+ulong pos = index;
+
+return BinaryHelper.ReadChar( () => GetNextByte(ref pos), encodeFlags, out bytesRead);
+}
+
+public char GetChar(long index, EncodingType encodeFlags, out int bytesRead)
+{
+return GetChar(ClampIdx(index), encodeFlags, out bytesRead);
+}
 
 // Get int8
 
@@ -149,16 +191,6 @@ return BinaryHelper.ReadUInt128(view, endian);
 
 public UInt128 GetUInt128(long index, Endianness endian = default) => GetUInt128(ClampIdx(index), endian);
 
-// Advance one byte
-
-private byte GetNextByte(ref ulong pos)
-{
-var b = GetUInt8(pos);
-pos++;
-
-return b;
-}
-
 // Get varint
 
 public int GetVarInt(ulong index, out int bytesRead)
@@ -169,12 +201,6 @@ return BinaryHelper.DecodeVarInt( () => GetNextByte(ref pos), out bytesRead);
 }
 
 public int GetVarInt(long index, out int bytesRead) => GetVarInt(ClampIdx(index), out bytesRead);
-
-// Get unsigned varint
-
-public uint GetVarUInt(ulong index, out int bytesRead) => (uint)GetVarInt(index, out bytesRead);
-
-public uint GetVarUInt(long index, out int bytesRead) => (uint)GetVarInt(index, out bytesRead);
 
 // Read varint64
 
@@ -187,33 +213,27 @@ return BinaryHelper.DecodeVarInt64( () => GetNextByte(ref pos), out bytesRead);
 
 public long GetVarInt64(long index, out int bytesRead) => GetVarInt64(ClampIdx(index), out bytesRead);
 
-// Get unsigned varint64
-
-public ulong GetVarUInt64(ulong index, out int bytesRead) => (ulong)GetVarInt64(index, out bytesRead);
-
-public ulong GetVarUInt64(long index, out int bytesRead) => (ulong)GetVarInt64(index, out bytesRead);
-
 // Get ZigZag int
 
-public int GetZigZag(ulong index)
+public int GetZigZag(ulong index, out int bytesRead)
 {
-uint v = GetVarUInt(index, out _);
+var v = (uint)GetVarInt(index, out bytesRead);
 
 return BinaryHelper.DecodeZigZag(v);
 }
 
-public int GetZigZag(long index) => GetZigZag(ClampIdx(index) );
+public int GetZigZag(long index, out int bytesRead) => GetZigZag(ClampIdx(index), out bytesRead);
 
 // Get ZigZag long
 
-public long GetZigZag64(ulong index)
+public long GetZigZag64(ulong index, out int bytesRead)
 {
-ulong v = GetVarUInt64(index, out _);
+var v = (uint)GetVarInt64(index, out bytesRead);
 
 return BinaryHelper.DecodeZigZag64(v);
 }
 
-public long GetZigZag64(long index) => GetZigZag64(ClampIdx(index) );
+public long GetZigZag64(long index, out int bytesRead) => GetZigZag64(ClampIdx(index), out bytesRead);
 
 // Get half
 
@@ -247,6 +267,28 @@ return BinaryHelper.ReadDouble(view, endian);
 }
 
 public double GetDouble(long index, Endianness endian = default) => GetDouble(ClampIdx(index), endian);
+
+// Get UNIX Time (32-bits)
+
+public DateTime GetUnixTime32(ulong index)
+{
+var view = GetView(index, 4);
+
+return BinaryHelper.ReadUnixTime32(view);
+}
+
+public DateTime GetUnixTime32(long index) => GetUnixTime32(ClampIdx(index) );
+
+// Get UNIX Time
+
+public DateTime GetUnixTime64(ulong index)
+{
+var view = GetView(index, 8);
+
+return BinaryHelper.ReadUnixTime64(view);
+}
+
+public DateTime GetUnixTime64(long index) => GetUnixTime64(ClampIdx(index) );
 
 // Get string
 
@@ -339,34 +381,38 @@ return GetStringByLen64(ClampIdx(index), encoding, endian);
 
 // Get string prefixed by varint length
 
-public NativeString GetStringByVarLen(ulong index, EncodingType encoding = EncodingType.UTF8)
+public NativeString GetStringByVarLen(ulong index, out int varLen, 
+                                      EncodingType encoding = EncodingType.UTF8)
 {
-int strLen = GetVarInt(index, out int bytesRead);
-ulong strIndex = index + (ulong)bytesRead;
+int strLen = GetVarInt(index, out varLen);
+ulong strIndex = index + (ulong)varLen;
 
 return GetString(strIndex, strLen, encoding);
 }
 
-public NativeString GetStringByVarLen(long index, EncodingType encoding = EncodingType.UTF8)
+public NativeString GetStringByVarLen(long index, out int varLen,
+                                      EncodingType encoding = EncodingType.UTF8)
 {
-return GetStringByVarLen(ClampIdx(index), encoding);
+return GetStringByVarLen(ClampIdx(index), out varLen, encoding);
 }
 
 // Get string prefixed by varint64 length
 
-public NativeString GetStringByVarLen64(ulong index, EncodingType encoding = EncodingType.UTF8)
+public NativeString GetStringByVarLen64(ulong index, out int varLen,
+                                        EncodingType encoding = EncodingType.UTF8)
 {
-long rawLen = GetVarInt64(index, out int bytesRead);
+long rawLen = GetVarInt64(index, out varLen);
 var strLen = (int)Math.Min(rawLen, int.MaxValue);
 
-ulong strIndex = index + (ulong)bytesRead;
+ulong strIndex = index + (ulong)varLen;
 
 return GetString(strIndex, strLen, encoding);
 }
 
-public NativeString GetStringByVarLen64(long index, EncodingType encoding = EncodingType.UTF8)
+public NativeString GetStringByVarLen64(long index, out int varLen,
+                                        EncodingType encoding = EncodingType.UTF8)
 {
-return GetStringByVarLen64(ClampIdx(index), encoding);
+return GetStringByVarLen64(ClampIdx(index), out varLen, encoding);
 }
 
 // Get C-string
@@ -398,7 +444,7 @@ return GetCString(ClampIdx(index), encoding);
 
 // Get line
 
-public NativeString GetLine(ulong index, EncodingType encoding = EncodingType.UTF8)
+public NativeString GetLine(ulong index, out ulong bytesRead, EncodingType encoding = EncodingType.UTF8)
 {
 ulong pos = index;
 int strLen = 0;
@@ -413,14 +459,14 @@ byte peek = GetUInt8(pos + 1);
 
 if(peek == 0x0A) // Handle '\r\n'
 pos += 2;
-            
+ 
 else
 pos++;
 
 break;
 }
 
-else if (b == 0x0A) // '\n'
+else if(b == 0x0A) // '\n'
 {
 pos++;
 
@@ -431,12 +477,14 @@ pos++;
 strLen++;
 }
 
+bytesRead = pos - index;
+
 return GetString(index, strLen, encoding);
 }
 
-public NativeString GetLine(long index, EncodingType encoding = EncodingType.UTF8)
+public NativeString GetLine(long index, out ulong bytesRead, EncodingType encoding = EncodingType.UTF8)
 {
-return GetLine(ClampIdx(index), encoding);
+return GetLine(ClampIdx(index), out bytesRead, encoding);
 }
 
 }
