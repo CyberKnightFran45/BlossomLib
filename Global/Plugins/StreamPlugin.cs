@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 public static class StreamPlugin
@@ -40,7 +41,7 @@ return memOwner;
 
 // Read bool
 
-public static bool ReadBool(this Stream reader) => reader.ReadByte() != 0;
+public static bool ReadBool(this Stream reader) => reader.ReadUInt8() != 0;
 
 // Read bool (16-bits)
 
@@ -49,6 +50,10 @@ public static bool ReadBool16(this Stream reader) => reader.ReadInt16() != 0;
 // Read bool (32-bits)
 
 public static bool ReadBool32(this Stream reader) => reader.ReadInt32() != 0;
+
+// Read bool (64-bits)
+
+public static bool ReadBool64(this Stream reader) => reader.ReadInt64() != 0;
 
 // Read ASCII char (8-bits)
 
@@ -68,34 +73,8 @@ return BinaryHelper.ReadChar16(buffer, endian);
 
 public static char ReadChar(this Stream reader, EncodingType encodeFlags)
 {
-Span<byte> buffer = stackalloc byte[4]; // UTF-8 worst case
-Span<char> charSpan = stackalloc char[1];
-
-int bytesRead = 0;
-
-while(true)
-{
-int b = reader.ReadByte();
-
-if(b == -1)
-throw new EndOfStreamException();
-
-buffer[bytesRead++] = (byte)b;
-
-var encoding = encodeFlags.GetEncoding();
-int charsDecoded = encoding.GetChars(buffer[.. bytesRead], charSpan);
-
-if(charsDecoded > 0)
-return charSpan[0];
-
-if(bytesRead >= buffer.Length)
-throw new InvalidDataException("Unable to decode Char");
-
+return BinaryHelper.ReadChar(reader.ReadUInt8, encodeFlags, out _);
 }
-
-}
-
-
 
 // Read int8
 
@@ -217,7 +196,7 @@ return BinaryHelper.ReadUInt128(buffer, endian);
 
 public static int ReadVarInt(this Stream reader)
 {
-return BinaryHelper.DecodeVarInt( () => reader.ReadUInt8(), out _);
+return BinaryHelper.DecodeVarInt(reader.ReadUInt8, out _);
 }
 
 // Read unsigned varint
@@ -228,7 +207,7 @@ public static uint ReadVarUInt(this Stream reader) => (uint)reader.ReadVarInt();
 
 public static long ReadVarInt64(this Stream reader)
 {
-return BinaryHelper.DecodeVarInt64( () => reader.ReadUInt8(), out _);
+return BinaryHelper.DecodeVarInt64(reader.ReadUInt8, out _);
 }
 
 // Read unsigned varInt64
@@ -283,15 +262,23 @@ reader.ReadExactly(buffer);
 return BinaryHelper.ReadDouble(buffer, endian);
 }
 
-// Read Unix Timestamp as Windows DateTime
+// Read Unix Timestamp as Windows DateTime (32 bits)
 
-public static DateTime ReadUnixTime(this Stream reader)
+public static DateTime ReadUnixTime32(this Stream reader)
 {
-uint timeStamp = reader.ReadUInt32();
+var timeStamp = reader.ReadUInt32();
 
 return UnixTimestamp.ConvertFrom(timeStamp);
 }
 
+// Read Unix Timestamp as Windows DateTime (64 bits)
+
+public static DateTime ReadUnixTime64(this Stream reader)
+{
+var timeStamp = reader.ReadInt64();
+
+return UnixTimestamp.ConvertFrom(timeStamp);
+}
 
 // Read whole file as string
 
@@ -422,7 +409,7 @@ if(raw == -1)
 
 if(length > 0)
 return BinaryHelper.GetNativeString(buffer.AsSpan(0, length), encoding);
-	
+
 return null;
 }
 
@@ -477,6 +464,10 @@ writer.WriteUInt16(u);
 
 public static void WriteBool32(this Stream writer, bool v) => writer.WriteUInt32(v ? 1u : 0u);
 
+// Write bool (64-bits)
+
+public static void WriteBool64(this Stream writer, bool v) => writer.WriteUInt64(v ? 1u : 0u);
+
 // Write char (8-bits, ASCII only)
 
 public static void WriteChar8(this Stream writer, char c) => writer.WriteByte( (byte)c);
@@ -492,11 +483,8 @@ writer.WriteUInt16(c, endian);
 
 public static void WriteChar(this Stream writer, char c, EncodingType encodeFlags)
 {
-Span<char> charSpan = [ c ];
 Span<byte> buffer = stackalloc byte[4]; // UTF-8 worst case
-
-var encoding = encodeFlags.GetEncoding();
-int written = encoding.GetBytes(charSpan, buffer);
+var written = BinaryHelper.WriteChar(c, buffer, encodeFlags);
 
 writer.Write(buffer[.. written] );
 }
@@ -607,20 +595,20 @@ writer.Write(buffer);
 
 // Write varint
 
-public static void WriteVarInt(this Stream writer, int v)
+public static int WriteVarInt(this Stream writer, int v)
 {
-BinaryHelper.EncodeVarInt(writer.WriteByte, v, out _);
+return BinaryHelper.EncodeVarInt(writer.WriteByte, v);
 }
 
 // Write unsigned varint
 
-public static void WriteVarUInt(this Stream writer, uint v) => writer.WriteVarInt( (int)v);
+public static int WriteVarUInt(this Stream writer, uint v) => writer.WriteVarInt( (int)v);
 
 // Write varint64
 
-public static void WriteVarInt64(this Stream writer, long v)
+public static int WriteVarInt64(this Stream writer, long v)
 {
-BinaryHelper.EncodeVarInt64(writer.WriteByte, v, out _);
+return BinaryHelper.EncodeVarInt64(writer.WriteByte, v);
 }
 
 // Write unsigned varint64
@@ -675,13 +663,22 @@ BinaryHelper.WriteDouble(v, buffer, endian);
 writer.Write(buffer);
 }
 
-// Write Windows Time as Unix Time
+// Write Windows Time as Unix Time (32 bits)
 
-public static void WriteUnixTime(this Stream writer, DateTime dateTime)
+public static void WriteUnixTime32(this Stream writer, DateTime dateTime)
 {
 var timeStamp = (uint)UnixTimestamp.ConvertTo(dateTime);
 
 writer.WriteUInt32(timeStamp);
+}
+
+// Write Windows Time as Unix Time (64 bits)
+
+public static void WriteUnixTime64(this Stream writer, DateTime dateTime)
+{
+var timeStamp = UnixTimestamp.ConvertTo(dateTime);
+
+writer.WriteInt64(timeStamp);
 }
 
 // Write string
@@ -896,5 +893,4 @@ return b;
 }
 
 #endregion
-
 }
