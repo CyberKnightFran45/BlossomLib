@@ -1,17 +1,60 @@
 using System;
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 
-/// <summary> Allows reading or writing values from Binary buffers  </summary>
+/// <summary> Allows reading or writing values from Binary buffers </summary>
 
 public static class BinaryHelper
 {
 #region ==========  READER  =========
+
+// Cast byte as bool
+
+public static bool DecodeBool(long b) => b != 0;
+
+// Read bool (16-bits)
+
+public static bool ReadBool16(ReadOnlySpan<byte> buffer) => ReadInt16(buffer, default) != 0;
+
+// Read bool (32-bits)
+
+public static bool ReadBool32(ReadOnlySpan<byte> buffer) => ReadInt32(buffer, default) != 0;
+
+// Read bool (64-bits)
+
+public static bool ReadBool64(ReadOnlySpan<byte> buffer) => ReadInt64(buffer, default) != 0;
 
 // Read char (16-bits)
 
 public static char ReadChar16(ReadOnlySpan<byte> buffer, Endianness endian)
 {
 return (char)ReadUInt16(buffer, endian);
+}
+
+// Read char (by using Encoding)
+
+public static char ReadChar(Func<byte> reader, EncodingType encodeFlags, out int bytesRead)
+{
+bytesRead = 0;
+
+Span<byte> buffer = stackalloc byte[4];
+Span<char> charSpan = stackalloc char[1];
+
+var encoding = encodeFlags.GetEncoding();
+var decoder = encoding.GetDecoder();
+
+while(bytesRead < buffer.Length)
+{
+buffer[bytesRead++] = reader();
+
+int charsDecoded = encoding.GetChars(buffer[.. bytesRead], charSpan);
+
+if(charsDecoded > 0)
+return charSpan[0];
+
+}
+
+throw new InvalidOperationException("Invalid or incomplete char sequence.");
 }
 
 // Read short
@@ -170,6 +213,24 @@ return BinaryPrimitives.ReadDoubleBigEndian(buffer);
 return BinaryPrimitives.ReadDoubleLittleEndian(buffer);
 }
 
+// Read Unix Time (32-bits)
+
+public static DateTime ReadUnixTime32(ReadOnlySpan<byte> buffer)
+{
+var timeStamp = ReadUInt32(buffer, default);
+
+return UnixTimestamp.ConvertFrom(timeStamp);
+}
+
+// Read Unix Time
+
+public static DateTime ReadUnixTime64(ReadOnlySpan<byte> buffer)
+{
+var timeStamp = ReadInt64(buffer, default);
+
+return UnixTimestamp.ConvertFrom(timeStamp);
+}
+
 // Decode varint (Inner)
 
 private static int DecodeVarInt(Func<byte> readFunc, int mask, out int bytesRead)
@@ -238,11 +299,52 @@ return -(long)( (v + 1) >> 1);
 
 #region ==========  WRITER  =========
 
+// Cast bool as number
+
+public static ulong EncodeBool(bool v) => v ? 1u : 0u;
+
+// Write bool (16-bits)
+
+public static void WriteBool16(bool v, Span<byte> buffer)
+{
+var n = (ushort)EncodeBool(v);
+
+WriteUInt16(n, buffer, default);
+}
+
+// Write bool (32-bits)
+
+public static void WriteBool32(bool v, Span<byte> buffer)
+{
+var n = (uint)EncodeBool(v);
+
+WriteUInt32(n, buffer, default);
+}
+
+// Write bool (64-bits)
+
+public static void WriteBool64(bool v, Span<byte> buffer)
+{
+var n = EncodeBool(v);
+
+WriteUInt64(n, buffer, default);
+}
+
 // Write char (16-bits)
 
 public static void WriteChar16(char c, Span<byte> buffer, Endianness endian)
 {
 WriteUInt16(c, buffer, endian);
+}
+
+// Encode char (by using Encoding)
+
+public static int WriteChar(char c, Span<byte> buffer, EncodingType encodeFlags)
+{
+var view = MemoryMarshal.CreateSpan(ref c, 1);
+var encoding = encodeFlags.GetEncoding();
+
+return encoding.GetBytes(view, buffer);
 }
 
 // Write short
@@ -422,11 +524,20 @@ BinaryPrimitives.WriteDoubleLittleEndian(buffer, v);
 
 }
 
+// Write Unix Time
+
+public static void WriteUnixTime(DateTime dateTime, Span<byte> buffer)
+{
+var timeStamp = UnixTimestamp.ConvertTo(dateTime);
+
+WriteInt64(timeStamp, buffer, default);
+}
+
 // Encode varint (Inner)
 
-private static void EncodeVarInt(Action<byte> writeFunc, ulong v, out int bytesWritten)
+private static int EncodeVarInt(Action<byte> writeFunc, ulong v)
 {
-bytesWritten = 0;
+int bytesWritten = 0;
 
 while(v > 0x7F)
 {
@@ -438,21 +549,17 @@ v >>= 7;
 
 writeFunc( (byte)v);
 bytesWritten++;
+
+return bytesWritten;
 }
 
 // Encode varint
 
-public static void EncodeVarInt(Action<byte> writeFunc, int v, out int bytesWritten)
-{
-EncodeVarInt(writeFunc, (ulong)v, out bytesWritten);
-}
+public static int EncodeVarInt(Action<byte> writeFunc, int v) => EncodeVarInt(writeFunc, (ulong)v);
 
 // Encode varint64
 
-public static void EncodeVarInt64(Action<byte> writeFunc, long v, out int bytesWritten)
-{
-EncodeVarInt(writeFunc, (ulong)v, out bytesWritten);
-}
+public static int EncodeVarInt64(Action<byte> writeFunc, long v) => EncodeVarInt(writeFunc, (ulong)v);
 
 // Encode ZigZag (inner)
 
