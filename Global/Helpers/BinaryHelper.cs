@@ -524,9 +524,18 @@ BinaryPrimitives.WriteDoubleLittleEndian(buffer, v);
 
 }
 
+// Write Unix Time (32 bits)
+
+public static void WriteUnixTime32(DateTime dateTime, Span<byte> buffer)
+{
+var timeStamp = (uint)UnixTimestamp.ConvertTo(dateTime);
+
+WriteUInt32(timeStamp, buffer, default);
+}
+
 // Write Unix Time
 
-public static void WriteUnixTime(DateTime dateTime, Span<byte> buffer)
+public static void WriteUnixTime64(DateTime dateTime, Span<byte> buffer)
 {
 var timeStamp = UnixTimestamp.ConvertTo(dateTime);
 
