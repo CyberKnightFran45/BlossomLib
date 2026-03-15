@@ -345,7 +345,7 @@ public void SetUnixTime32(ulong index, DateTime dateTime)
 {
 var view = AsSpan(index, 4);
 
-BinaryHelper.WriteUnixTime(dateTime, view);
+BinaryHelper.WriteUnixTime32(dateTime, view);
 }
 
 public void SetUnixTime32(long index, DateTime dateTime)
@@ -359,7 +359,7 @@ public void SetUnixTime64(ulong index, DateTime dateTime)
 {
 var view = AsSpan(index, 8);
 
-BinaryHelper.WriteUnixTime(dateTime, view);
+BinaryHelper.WriteUnixTime64(dateTime, view);
 }
 
 public void SetUnixTime64(long index, DateTime dateTime)
