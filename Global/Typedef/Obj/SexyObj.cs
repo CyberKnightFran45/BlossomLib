@@ -14,6 +14,13 @@ public class SexyObj
 [JsonPropertyName("#comment") ]
 
 public string Comment{ get; set; }
+
+/** <summary> Gets or Sets an Uid for this Object. </summary>
+<returns> The Uid. </returns> */
+
+[JsonPropertyName("uid") ]
+
+public string Uid{ get; set; }
     
 /** <summary> Gets or Sets the Aliases for this Object. </summary>
 
