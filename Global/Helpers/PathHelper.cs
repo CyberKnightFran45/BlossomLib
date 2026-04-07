@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using ICSharpCode.SharpZipLib.Core;
 
 /// <summary> Initializes some Functions for Building or Editing access Paths. </summary>
 
@@ -157,65 +158,6 @@ Directory.CreateDirectory(targetPath);
 
 }
 
-/** <summary> Creates a Filter from a List of Extensions. </summary>
-
-<param name = "includeList"> The Extensions to Include. </param>
-<param name = "excludeList"> The Extensions to Exclude. </param>
-
-<returns> The Extensions Filter. </returns> */
-
-private static Func<string, bool> CreateExtFilter(HashSet<string> includeList, HashSet<string> excludeList)
-{
-
-return extFilter => 
-{
-string fileExt = Path.GetExtension(extFilter);
-
-if(includeList.Contains(".*") )   
-return excludeList.Count == 0 || !excludeList.Contains(fileExt, StringComparer.OrdinalIgnoreCase);
-
-else if(includeList.Count == 0 && excludeList.Count > 0)
-return !excludeList.Contains(fileExt, StringComparer.OrdinalIgnoreCase);
-
-return includeList.Contains(fileExt, StringComparer.OrdinalIgnoreCase) &&
-!excludeList.Contains(fileExt, StringComparer.OrdinalIgnoreCase);
-
-};
-
-}
-
-/** <summary> Creates a Filter from a Specific Names List. </summary>
-
-<returns> The Names Filter. </returns> */
-
-private static Func<string, bool> CreateNamesFilter(HashSet<string> includeList, HashSet<string> excludeList)
-{
-
-return namesFilter => 
-{
-string fileName = Path.GetFileNameWithoutExtension(namesFilter);
-
-if(includeList.Contains("*") )
-return excludeList.Count == 0 || !excludeList.Contains(fileName, StringComparer.OrdinalIgnoreCase);
-
-else if(includeList.Count == 0 && excludeList.Count > 0)
-return !excludeList.Contains(fileName, StringComparer.OrdinalIgnoreCase);
-
-return includeList.Contains(fileName, StringComparer.OrdinalIgnoreCase) &&
-!excludeList.Contains(fileName, StringComparer.OrdinalIgnoreCase); 
-};
-
-}
-
-/** <summary> Creates a Extensions Filter from a Dir Length. </summary>
-
-<returns> The Extensions Filter. </returns> */
-
-private static Func<string, bool> CreateDirFilter(int dirLength)
-{
-return dirFilter => dirLength < 0 || Directory.GetFileSystemEntries(dirFilter).Length == dirLength;
-}
-
 // Delete End Separator
 
 public static void DeleteEndPathSeparator(ref string str)
@@ -227,78 +169,81 @@ str = str[0..^1];
 
 }
 
-/** <summary> Filters a List of Files by a Specific Name and a Specific Extension,
-which can be in Lowercase or in Uppercase. </summary>
+// Create filter (Core)
 
-<param name = "sourceList"> The Files List to be Filtered. </param>
-<param name = "specificExtensions"> A List of Specific Extensions used for Filtering the Files. </param>
-
-<returns> The Filtered Files List. </returns> */
-
-public static void FilterFiles(ref IEnumerable<string> sourceFiles, HashSet<string> names,
-HashSet<string> extensions, HashSet<string> namesToExclude = null, HashSet<string> extToExclude = null)
+private static Func<string, bool> CreateFilter(Func<string, string> selector,
+                                               HashSet<string> includeList,
+                                               HashSet<string> excludeList,
+                                               string wildcard = "*")
 {
 
-if(sourceFiles is null || (names.Count > 0 && extensions.Count > 0) )
-return;
+return input =>
+{
+string v = selector(input);
 
+if(includeList.Contains(wildcard) )
+return excludeList.Count == 0 || !excludeList.Contains(v, StringComparer.OrdinalIgnoreCase);
+
+if(includeList.Count == 0)
+return excludeList.Count == 0 || !excludeList.Contains(v, StringComparer.OrdinalIgnoreCase);
+
+return includeList.Contains(v) && !excludeList.Contains(v);
+};
+
+}
+
+// Defines a names filter for files
+
+private static Func<string, bool> NamesFilter(HashSet<string> includeList, HashSet<string> excludeList)
+{
+return CreateFilter(path => Path.GetFileNameWithoutExtension(path), includeList, excludeList);
+}
+
+// Defines an extension filter for files
+
+private static Func<string, bool> ExtensionFilter(HashSet<string> includeList, HashSet<string> excludeList)
+{
+return CreateFilter(path => Path.GetExtension(path), includeList, excludeList, ".*");
+}
+
+public static Func<string, bool> CreateFileFilter(HashSet<string> names,
+                                                  HashSet<string> extensions,
+                                                  HashSet<string> namesToExclude = null,
+                                                  HashSet<string> extToExclude = null)
+{
 namesToExclude ??= new();
 extToExclude ??= new();
 
-var namesFilter = CreateNamesFilter(names, namesToExclude);
-var extFilter = CreateExtFilter(extensions, extToExclude);
+var nameFilter = NamesFilter(names, namesToExclude);
+var extFilter = ExtensionFilter(extensions, extToExclude);
 
-HashSet<string> added = new(StringComparer.OrdinalIgnoreCase);
+bool useNameFilter = names.Count > 0 || namesToExclude.Count > 0;
+bool useExtFilter = extensions.Count > 0 || extToExclude.Count > 0;
 
-var filtered = Enumerable.Empty<string>();
-
-if(extensions.Count > 0)
-{
-filtered = filtered.Concat(sourceFiles.Where(extFilter)
-.Where(file =>
-{
-var name = Path.GetFileNameWithoutExtension(file);
-return !namesToExclude.Contains(name, StringComparer.OrdinalIgnoreCase) && added.Add(file);
-}));
+return path => (!useNameFilter || nameFilter(path) ) && (!useExtFilter || extFilter(path) );
 }
 
-if(names.Count > 0)
-filtered = filtered.Concat(sourceFiles.Where(namesFilter).Where(added.Add) );
+/** <summary> Filters a list of files by Name and Extension </summary>
 
-sourceFiles = filtered;
-}
+<param name = "src"> The list </param>
+<param name = "extensions"> The extensions </param>
 
-/** <summary> Filters a List of Folders by a Specific Name and by Content Length. </summary>
+<returns> The Filtered List </returns> */
 
-<param name = "sourceList"> The Folders List to be Filtered. </param>
-
-<returns> The Filtered Dirs. </returns> */
-
-public static void FilterDirs(ref IEnumerable<string> sourceDirs, HashSet<string> names, int maxLength,
-HashSet<string> namesToExclude = null)
+public static IEnumerable<string> FilterFiles(IEnumerable<string> src,
+                                              HashSet<string> names,
+                                              HashSet<string> extensions,
+                                              HashSet<string> namesToExclude = null,
+                                              HashSet<string> extToExclude = null)
 {
 
-if(sourceDirs is null || (names.Count > 0 && maxLength < 0) )
-return;
+if(src is null)
+return [];
 
-namesToExclude ??= new();
+var filesFilter = CreateFileFilter(names, extensions, namesToExclude, extToExclude);
 
-var namesFilter = CreateNamesFilter(names, namesToExclude);
-var lengthFilter = CreateDirFilter(maxLength);
-
-HashSet<string> added = new(StringComparer.OrdinalIgnoreCase);
-
-var filtered = Enumerable.Empty<string>();
-
-if(names.Count > 0)
-filtered = filtered.Concat(sourceDirs.Where(namesFilter).Where(added.Add) );
-
-if(maxLength > 0)
-filtered = filtered.Concat(sourceDirs.Where(lengthFilter).Where(added.Add));
-
-sourceDirs = filtered;
+return src.Where(filesFilter);
 }
-
 
 /** <summary> Filters a Path from User's Input. </summary>
 
