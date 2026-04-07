@@ -6,22 +6,27 @@ using System.IO;
 
 public static class TraceLogger
 {
-// Fields
+// Default settings
 
-private const int INITIAL_SIZE = 4096;
 private static readonly string baseDir = Path.Combine(LibInfo.CurrentDllDirectory, "Logs");
 
+// Buffer
+
 private static NativeMemoryOwner<char> _buffer;
+private static Stream _externalStream;
+
+// Fields
+
 private static bool _isInitialized;
+private static bool _enabled;
 
 private static ulong _position;
+private static ulong _flushedPos;
 
 private static DateTime _startTime;
 private static Stopwatch _timer;
 
-private static bool _enabled;
-
-// Enable Logger for Writing
+// Enable Logger
 
 public static void Enable() => _enabled = true;
 
@@ -29,12 +34,32 @@ public static void Enable() => _enabled = true;
 
 public static void Disable() => _enabled = false;
 
-// Setups the Logger
+// Set output stream
 
-public static void Init()
+public static void SetOutputStream(Stream stream) => _externalStream = stream;
+
+// Clear output stream
+
+public static void ClearOutputStream() => _externalStream = null;
+
+// Init logger (Internal)
+
+private static void InitCore()
 {
+_startTime = DateTime.Now;
+_buffer = new(4096);
 
-if(_isInitialized)
+_timer ??= new();
+_isInitialized = true;
+
+_enabled = true;
+
+WriteDate();
+}
+
+// Upate logger 
+
+private static void Update()
 {
 var now = DateTime.Now;
 
@@ -60,18 +85,19 @@ WriteLine(bars);
 AutoSpacing(2);
 }
 
-return;
 }
 
-_startTime = DateTime.Now;
-_buffer = new(INITIAL_SIZE);
+// Setups the Logger
 
-_timer ??= new();
-_isInitialized = true;
+public static void Init()
+{
 
-_enabled = true;
+if(_isInitialized)
+Update();
 
-WriteDate();
+else
+InitCore();
+
 }
 
 // Make sure Logger is ready before Writing
@@ -82,6 +108,22 @@ private static void EnsureInit()
 if(!_isInitialized)
 Init();
 
+}
+
+// Dump logs
+
+private static void Dump(Stream writer)
+{
+
+if(_flushedPos >= _position)
+return;
+
+var bytes = (int)(_position - _flushedPos);
+
+var data = _buffer.AsSpan(_flushedPos, bytes);
+writer.WriteString(data);
+
+_flushedPos = _position;
 }
 
 // Starts the timer
@@ -167,6 +209,10 @@ Grow(required + 512);
 _buffer.CopyFrom(msg, _position);
 
 _position += (ulong)msg.Length;
+
+if(_externalStream != null)
+Dump(_externalStream);
+
 }
 
 // Write action triggered
@@ -264,6 +310,9 @@ _buffer[_position] = '\n';
 _position += 1;
 }
 
+if(_externalStream != null)
+Dump(_externalStream);
+
 }
 
 // Write msg in new line
@@ -353,10 +402,8 @@ PathHelper.EnsurePathExists(logFolder);
 
 string logPath = Path.Combine(logFolder, $"{loggerTime}.log");
 
-using FileStream writer = FileManager.OpenWrite(logPath);
-
-var data = _buffer.AsSpan(0, (int)_position);
-writer.WriteString(data);
+using var writer = FileManager.OpenWrite(logPath);
+Dump(writer);
 }
 
 // Realloc memory
@@ -376,7 +423,9 @@ public static void Dispose()
 if(_isInitialized)
 {
 _buffer.Dispose();
+
 _position = 0;
+_flushedPos = 0;
 
 _isInitialized = false;
 _enabled = false;
