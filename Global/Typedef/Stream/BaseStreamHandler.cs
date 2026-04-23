@@ -45,7 +45,7 @@ GC.SuppressFinalize(this);
 
 /// <param name="disposing">Determines if all the Resources should be Discarded.</param>
 
-protected void Dispose(bool disposing)
+protected virtual void Dispose(bool disposing)
 {
 
 if(disposing && !IsClosed)
