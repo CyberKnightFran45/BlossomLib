@@ -15,7 +15,7 @@ return bitsLength switch
 {
 RepeatCountFlags.UInt8 => reader.ReadByte(), 
 RepeatCountFlags.UInt16 => reader.ReadInt16(),
-RepeatCountFlags.VarInt32 => reader.ReadVarInt(),
+RepeatCountFlags.VarInt32 => (int)reader.ReadVarInt(),
 RepeatCountFlags.UInt64 => (int)reader.ReadInt64(),
 RepeatCountFlags.VarInt64 => (int)reader.ReadVarInt64(),
 _ => reader.ReadInt32()
@@ -120,7 +120,7 @@ writer.WriteUInt16( (ushort)listSize);
 break;
 
 case RepeatCountFlags.VarInt32:
-writer.WriteVarInt(listSize); 
+writer.WriteVarInt( (uint)listSize); 
 break;
 
 case RepeatCountFlags.UInt64:
@@ -128,7 +128,7 @@ writer.WriteInt64(listSize);
 break;
 
 case RepeatCountFlags.VarInt64:
-writer.WriteVarInt64(listSize); 
+writer.WriteVarInt64( (ulong)listSize); 
 break;
 
 default:
