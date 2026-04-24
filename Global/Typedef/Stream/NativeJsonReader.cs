@@ -264,6 +264,10 @@ throw new InvalidOperationException($"Current token is not a PropertyName: {_cur
 return _currentPropertyName;
 }
 
+/// <summary> Get raw value as text </summary>
+
+public string GetRawValue() =>  _currentValue;
+
 /// <summary> Cast current token as a <c>boolean</c> </summary>
 
 public bool GetBoolean()
@@ -438,7 +442,7 @@ return _currentValue.IndexOfAny(DECIMAL_CHARS) >= 0;
 
 /// <summary> Check if current node is a negative number </summary>
 
-public bool IsNumberNegative()
+public bool IsNegativeNumber()
 {
 
 if(_currentTokenType != JsonTokenType.Number)
