@@ -255,31 +255,31 @@ pos++;
 
 // Set VarInt
 
-public int SetVarInt(ulong index, int v)
+public int SetVarInt(ulong index, uint v)
 {
 ulong pos = index;
 
 return BinaryHelper.EncodeVarInt(b => SetNextByte(b, ref pos), v);
 }
 
-public int SetVarInt(long index, int v) => SetVarInt(ClampIdx(index), v);
+public int SetVarInt(long index, uint v) => SetVarInt(ClampIdx(index), v);
 
 // Set VarInt64
 
-public int SetVarInt64(ulong index, long v)
+public int SetVarInt64(ulong index, ulong v)
 {
 ulong pos = index;
 
 return BinaryHelper.EncodeVarInt64(b => SetNextByte(b, ref pos), v);
 }
 
-public int SetVarInt64(long index, long v) => SetVarInt64(ClampIdx(index), v);
+public int SetVarInt64(long index, ulong v) => SetVarInt64(ClampIdx(index), v);
 
 // Set ZigZag int
 
 public int SetZigZag(ulong index, int v)
 {
-int zigZag = BinaryHelper.EncodeZigZag(v);
+uint zigZag = BinaryHelper.EncodeZigZag(v);
 
 return SetVarInt(index, zigZag);
 }
@@ -290,7 +290,7 @@ public int SetZigZag(long index, int v) => SetZigZag(ClampIdx(index), v);
 
 public int SetZigZag64(ulong index, long v)
 {
-long zigZag = BinaryHelper.EncodeZigZag64(v);
+ulong zigZag = BinaryHelper.EncodeZigZag64(v);
 
 return SetVarInt64(index, zigZag);
 }
@@ -390,7 +390,8 @@ return SetString(ClampIdx(index), str, encoding);
 
 // Set string prefixed by int8 length
 
-public ulong SetStringByLen8(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetStringByLen8(ulong index, ReadOnlySpan<char> str,
+                             EncodingType encoding = EncodingType.UTF8)
 {
 ulong rawLen = 0;
 
@@ -402,7 +403,8 @@ SetUInt8(index, (byte)rawLen);
 return rawLen + 1;
 }
 
-public ulong SetStringByLen8(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetStringByLen8(long index, ReadOnlySpan<char> str,
+                             EncodingType encoding = EncodingType.UTF8)
 {
 return SetStringByLen8(ClampIdx(index), str, encoding);
 }
@@ -478,13 +480,14 @@ return SetStringByLen64(ClampIdx(index), str, encoding, endian);
 
 // Set string prefixed by varint length
 
-public ulong SetStringByVarLen(ulong index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetStringByVarLen(ulong index, ReadOnlySpan<char> str,
+                               EncodingType encoding = EncodingType.UTF8)
 {
 
 if(str.IsEmpty)
 return (ulong)SetVarInt(index, 0);
 
-int rawLen = BinaryHelper.GetEncodedLength(str, encoding);
+var rawLen = (uint)BinaryHelper.GetEncodedLength(str, encoding);
 var varLen = (ulong)SetVarInt(index, rawLen);
 
 ulong strIndex = index + varLen;
@@ -493,7 +496,8 @@ SetString(strIndex, str, encoding);
 return (ulong)rawLen + varLen;
 }
 
-public ulong SetStringByVarLen(long index, ReadOnlySpan<char> str, EncodingType encoding = EncodingType.UTF8)
+public ulong SetStringByVarLen(long index, ReadOnlySpan<char> str,
+                               EncodingType encoding = EncodingType.UTF8)
 {
 return SetStringByVarLen(ClampIdx(index), str, encoding);
 }
@@ -507,7 +511,7 @@ public ulong SetStringByVarLen64(ulong index, ReadOnlySpan<char> str,
 if(str.IsEmpty)
 return (ulong)SetVarInt64(index, 0);
 
-long rawLen = BinaryHelper.GetEncodedLength(str, encoding);
+var rawLen = (ulong)BinaryHelper.GetEncodedLength(str, encoding);
 var varLen = (ulong)SetVarInt64(index, rawLen);
 
 ulong strIndex = index + varLen;
