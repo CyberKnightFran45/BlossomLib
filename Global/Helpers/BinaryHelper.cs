@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 /// <summary> Allows reading or writing values from Binary buffers </summary>
@@ -231,23 +232,23 @@ var timeStamp = ReadInt64(buffer, default);
 return UnixTimestamp.ConvertFrom(timeStamp);
 }
 
-// Decode varint (Inner)
+// Decode varint
 
-private static int DecodeVarInt(Func<byte> readFunc, int mask, out int bytesRead)
+public static uint DecodeVarInt(Func<byte> readFunc, out int bytesRead)
 {
 bytesRead = 0;
 
-int result = 0;
+uint result = 0;
 int shift = 0;
 
 byte b;
 
-while(shift < mask)
+while(true)
 {
 b = readFunc();
 bytesRead++;
 
-result |= (b & 0x7F) << shift;
+result |= (uint)(b & 0x7F) << shift;
 
 if( (b & 0x80) == 0)
 break;
@@ -258,18 +259,31 @@ shift += 7;
 return result;
 }
 
-// Decode varint
+// Decode varlong
 
-public static int DecodeVarInt(Func<byte> readFunc, out int bytesRead)
+public static ulong DecodeVarInt64(Func<byte> readFunc, out int bytesRead)
 {
-return DecodeVarInt(readFunc, 35, out bytesRead);
+bytesRead = 0;
+
+ulong result = 0;
+int shift = 0;
+
+byte b;
+
+while(true)
+{
+b = readFunc();
+bytesRead++;
+
+result |= (ulong)(b & 0x7F) << shift;
+
+if( (b & 0x80) == 0)
+break;
+
+shift += 7;
 }
 
-// Decode varint64
-
-public static long DecodeVarInt64(Func<byte> readFunc, out int bytesRead)
-{
-return DecodeVarInt(readFunc, 70, out bytesRead);
+return result;
 }
 
 // Decode VarInt as ZigZag
@@ -288,10 +302,7 @@ return -(int)( (v + 1) >> 1);
 public static long DecodeZigZag64(ulong v)
 {
 
-if( (v & 0b1) == 0)
-return (long)(v >> 1);
-
-return -(long)( (v + 1) >> 1);
+return (long)( (v >> 1) ^ (~(v & 1) + 1) );
 }
 
 #endregion
@@ -542,7 +553,7 @@ var timeStamp = UnixTimestamp.ConvertTo(dateTime);
 WriteInt64(timeStamp, buffer, default);
 }
 
-// Encode varint (Inner)
+// Encode varint (Core)
 
 private static int EncodeVarInt(Action<byte> writeFunc, ulong v)
 {
@@ -550,7 +561,7 @@ int bytesWritten = 0;
 
 while(v > 0x7F)
 {
-writeFunc( (byte)(v | 0x80) );
+writeFunc( (byte)( (v & 0x7F) | 0x80) );
 bytesWritten++;
 
 v >>= 7;
@@ -564,28 +575,41 @@ return bytesWritten;
 
 // Encode varint
 
-public static int EncodeVarInt(Action<byte> writeFunc, int v) => EncodeVarInt(writeFunc, (ulong)v);
+public static int EncodeVarInt(Action<byte> writeFunc, uint v) => EncodeVarInt(writeFunc, (ulong)v);
 
 // Encode varint64
 
-public static int EncodeVarInt64(Action<byte> writeFunc, long v) => EncodeVarInt(writeFunc, (ulong)v);
+public static int EncodeVarInt64(Action<byte> writeFunc, ulong v) => EncodeVarInt(writeFunc, v);
 
 // Encode ZigZag (inner)
 
-private static long EncodeZigZag(long v, int mask) => (v << 1) ^ (v >> mask);
+private static ulong EncodeZigZag(long v, int mask) => (ulong)( (v << 1) ^ (v >> mask) );
 
-// Encode ZigZag int
+// Encode ZigZag
 
-public static int EncodeZigZag(int v) => (int)EncodeZigZag(v, 31);
+public static uint EncodeZigZag(int v) => (uint)EncodeZigZag(v, 31);
 
-// Encode ZigZag long
+// Encode ZigZag (64-bits)
 
-public static long EncodeZigZag64(long v) => EncodeZigZag(v, 63);
+public static ulong EncodeZigZag64(long v) => EncodeZigZag(v, 63);
 
 #endregion
 
 
 #region ==========  CONVERTER  =========
+
+// Get VarInt length
+
+public static int ComputeVarIntLength(ulong u)
+{
+
+if(u == 0)
+return 1;
+
+int bits = 64 - BitOperations.LeadingZeroCount(u);
+
+return (bits + 6) / 7;
+}
 
 // Get Encoded length
 
