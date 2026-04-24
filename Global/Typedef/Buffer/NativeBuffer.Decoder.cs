@@ -193,25 +193,25 @@ public UInt128 GetUInt128(long index, Endianness endian = default) => GetUInt128
 
 // Get varint
 
-public int GetVarInt(ulong index, out int bytesRead)
+public uint GetVarInt(ulong index, out int bytesRead)
 {
 ulong pos = index;
 
 return BinaryHelper.DecodeVarInt( () => GetNextByte(ref pos), out bytesRead);
 }
 
-public int GetVarInt(long index, out int bytesRead) => GetVarInt(ClampIdx(index), out bytesRead);
+public uint GetVarInt(long index, out int bytesRead) => GetVarInt(ClampIdx(index), out bytesRead);
 
 // Read varint64
 
-public long GetVarInt64(ulong index, out int bytesRead)
+public ulong GetVarInt64(ulong index, out int bytesRead)
 {
 ulong pos = index;
 
 return BinaryHelper.DecodeVarInt64( () => GetNextByte(ref pos), out bytesRead);
 }
 
-public long GetVarInt64(long index, out int bytesRead) => GetVarInt64(ClampIdx(index), out bytesRead);
+public ulong GetVarInt64(long index, out int bytesRead) => GetVarInt64(ClampIdx(index), out bytesRead);
 
 // Get ZigZag int
 
@@ -384,7 +384,7 @@ return GetStringByLen64(ClampIdx(index), encoding, endian);
 public NativeString GetStringByVarLen(ulong index, out int varLen, 
                                       EncodingType encoding = EncodingType.UTF8)
 {
-int strLen = GetVarInt(index, out varLen);
+var strLen = (int)GetVarInt(index, out varLen);
 ulong strIndex = index + (ulong)varLen;
 
 return GetString(strIndex, strLen, encoding);
@@ -401,7 +401,7 @@ return GetStringByVarLen(ClampIdx(index), out varLen, encoding);
 public NativeString GetStringByVarLen64(ulong index, out int varLen,
                                         EncodingType encoding = EncodingType.UTF8)
 {
-long rawLen = GetVarInt64(index, out varLen);
+var rawLen = GetVarInt64(index, out varLen);
 var strLen = (int)Math.Min(rawLen, int.MaxValue);
 
 ulong strIndex = index + (ulong)varLen;
