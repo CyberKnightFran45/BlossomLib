@@ -194,7 +194,7 @@ return BinaryHelper.ReadUInt128(buffer, endian);
 
 // Read varint
 
-public static int ReadVarInt(this Stream reader)
+public static uint ReadVarInt(this Stream reader)
 {
 return BinaryHelper.DecodeVarInt(reader.ReadUInt8, out _);
 }
@@ -205,7 +205,7 @@ public static uint ReadVarUInt(this Stream reader) => (uint)reader.ReadVarInt();
 
 // Read varint64
 
-public static long ReadVarInt64(this Stream reader)
+public static ulong ReadVarInt64(this Stream reader)
 {
 return BinaryHelper.DecodeVarInt64(reader.ReadUInt8, out _);
 }
@@ -351,7 +351,7 @@ return reader.ReadString(strLen, encoding);
 
 public static NativeString ReadStringByVarLen(this Stream reader, EncodingType encoding = EncodingType.UTF8)
 {
-int strLen = reader.ReadVarInt();
+uint strLen = reader.ReadVarInt();
 
 return reader.ReadString(strLen, encoding);
 }
@@ -360,7 +360,7 @@ return reader.ReadString(strLen, encoding);
 
 public static NativeString ReadStringByVarLen64(this Stream reader, EncodingType encoding = EncodingType.UTF8)
 {
-long strLen = reader.ReadVarInt64();
+var strLen = (long)reader.ReadVarInt64();
 
 return reader.ReadString(strLen, encoding);
 }
@@ -595,31 +595,23 @@ writer.Write(buffer);
 
 // Write varint
 
-public static int WriteVarInt(this Stream writer, int v)
+public static int WriteVarInt(this Stream writer, uint v)
 {
 return BinaryHelper.EncodeVarInt(writer.WriteByte, v);
 }
 
-// Write unsigned varint
-
-public static int WriteVarUInt(this Stream writer, uint v) => writer.WriteVarInt( (int)v);
-
 // Write varint64
 
-public static int WriteVarInt64(this Stream writer, long v)
+public static int WriteVarInt64(this Stream writer, ulong v)
 {
 return BinaryHelper.EncodeVarInt64(writer.WriteByte, v);
 }
-
-// Write unsigned varint64
-
-public static void WriteVarUInt64(this Stream writer, ulong v) => writer.WriteVarInt64( (long)v);
 
 // Write ZigZag int
 
 public static void WriteZigZag32(this Stream writer, int v)
 {
-int zigZag = BinaryHelper.EncodeZigZag(v);
+uint zigZag = BinaryHelper.EncodeZigZag(v);
 
 writer.WriteVarInt(zigZag);
 }
@@ -628,7 +620,7 @@ writer.WriteVarInt(zigZag);
 
 public static void WriteZigZag64(this Stream writer, long v)
 {
-long zigZag = BinaryHelper.EncodeZigZag64(v);
+ulong zigZag = BinaryHelper.EncodeZigZag64(v);
 
 writer.WriteVarInt64(zigZag);
 }
@@ -782,7 +774,7 @@ writer.WriteVarInt(0);
 return;
 }
 
-int rawLen = BinaryHelper.GetEncodedLength(str, encoding);
+var rawLen = (uint)BinaryHelper.GetEncodedLength(str, encoding);
 writer.WriteVarInt(rawLen);
 
 writer.WriteString(str, encoding);
@@ -800,7 +792,7 @@ writer.WriteVarInt64(0);
 return;
 }
 
-long rawLen = BinaryHelper.GetEncodedLength(str, encoding);
+var rawLen = (ulong)BinaryHelper.GetEncodedLength(str, encoding);
 writer.WriteVarInt64(rawLen);
 
 writer.WriteString(str, encoding);
