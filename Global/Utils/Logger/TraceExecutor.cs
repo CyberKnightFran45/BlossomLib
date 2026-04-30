@@ -61,13 +61,19 @@ TraceLogger.WriteInfo($"Output Size: {displaySize}", false);
 
 private static void DebugArgs( (string Name, object Value)[] args)
 {
-TraceLogger.WriteLine("==============  Params start  ==============");
+TraceLogger.WriteLine("==============  Arguments  ==============");
 TraceLogger.WriteLine();
 
-foreach(var (n, v) in args)
-TraceLogger.WriteLine($"{n} = {FormatValue(v)}");
+for(int i = 0; i < args.Length; i++)
+{
+var arg = args[i];
 
-TraceLogger.WriteLine("==============  Params end  ==============");
+TraceLogger.WriteLine($"[{i}] {arg.Name} = {FormatValue(arg.Value)}");
+}
+
+TraceLogger.WriteLine();
+
+TraceLogger.WriteLine("====================================");
 TraceLogger.WriteLine();
 }
 
@@ -103,19 +109,21 @@ return str;
 
 // Shorten path
 
-private static string ShortPath(string path, int maxLength = 64)
+private static string ShortPath(string path)
 {
-string fileName = Path.GetFileName(path);
 
-if(fileName.Length >= maxLength)
-return fileName;
+try
+{
+string baseDir = Environment.CurrentDirectory;
 
-int remaining = maxLength - fileName.Length - 3;
+return Path.GetRelativePath(baseDir, path);
+}
+	
+catch
+{
+return path;
+}
 
-if(remaining <= 0)
-return "..." + fileName;
-
-return "..." + path[^remaining.. ];
 }
 
 }
